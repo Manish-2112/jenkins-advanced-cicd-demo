@@ -6,11 +6,11 @@ pipeline {
 
     environment {
         // Replace with your current EC2 Public IP if you stopped/restarted the instance
-        SONAR_HOST_URL = 'http://54.159.206.157:9000'
+        SONAR_HOST_URL = 'http://44.204.90.214:9000'
         // Secret text credential stored in Jenkins Credentials with ID: 'sonar-token'
         SONAR_TOKEN    = credentials('sonar-token')
         // Email recipient for build notifications
-        NOTIFY_EMAIL   = 'test@gmail.com'
+        NOTIFY_EMAIL   = 'testxyz0606@gmail.com'
     }
 
     stages {
