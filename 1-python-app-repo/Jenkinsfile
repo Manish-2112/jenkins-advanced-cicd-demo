@@ -1,0 +1,76 @@
+// 1. Import the custom Shared Library configured in Jenkins System settings
+@Library('my-shared-lib') _
+
+pipeline {
+    agent any
+
+    environment {
+        // Update with your EC2 Public IP where SonarQube container is running
+        SONAR_HOST_URL = 'http://54.159.206.157:9000'
+        // Secret text credential stored in Jenkins Credentials with ID: 'sonar-token'
+        SONAR_TOKEN    = credentials('sonar-token')
+        // Email recipient for build notifications
+        NOTIFY_EMAIL   = 'test@gmail.com'
+    }
+
+    stages {
+        stage('1. Initialize & Audit') {
+            steps {
+                // Calls vars/logStageBanner.groovy from the Shared Library
+                logStageBanner('INITIALIZE & ENVIRONMENT AUDIT')
+                sh '''
+                    echo "Running on Host: $(hostname)"
+                    git --version
+                    docker --version
+                '''
+            }
+        }
+
+        stage('2. Unit Tests & Coverage') {
+            agent {
+                docker {
+                    image 'python:3.11-slim'
+                    reuseNode true
+                }
+            }
+            steps {
+                logStageBanner('RUNNING PYTEST UNIT TESTS & COVERAGE')
+                // Calls vars/runPythonUnitTests.groovy from the Shared Library
+                runPythonUnitTests()
+            }
+            post {
+                always {
+                    // Publishes JUnit XML report to Jenkins UI (Test Result Trend graph)
+                    junit 'test-results.xml'
+                }
+            }
+        }
+
+        stage('3. SonarQube Code Quality Scan') {
+            agent {
+                docker {
+                    image 'sonarsource/sonar-scanner-cli:latest'
+                    reuseNode true
+                }
+            }
+            steps {
+                logStageBanner('RUNNING SONARQUBE STATIC CODE ANALYSIS')
+                sh '''
+                    sonar-scanner \
+                      -Dsonar.host.url=${SONAR_HOST_URL} \
+                      -Dsonar.token=${SONAR_TOKEN}
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            // Calls vars/sendBuildEmail.groovy from the Shared Library
+            sendBuildEmail('SUCCESS', env.NOTIFY_EMAIL)
+        }
+        failure {
+            sendBuildEmail('FAILURE', env.NOTIFY_EMAIL)
+        }
+    }
+}
