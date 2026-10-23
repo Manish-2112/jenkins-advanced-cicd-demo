@@ -1,4 +1,4 @@
-```groovy
+
 // Import the custom Shared Library
 @Library('my-shared-lib') _
 
@@ -83,4 +83,3 @@ pipeline {
         }
     }
 }
-```
