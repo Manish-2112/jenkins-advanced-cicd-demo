@@ -5,7 +5,7 @@ pipeline {
     agent any
 
     environment {
-        // Update with your EC2 Public IP where SonarQube container is running
+        // Replace with your current EC2 Public IP if you stopped/restarted the instance
         SONAR_HOST_URL = 'http://54.159.206.157:9000'
         // Secret text credential stored in Jenkins Credentials with ID: 'sonar-token'
         SONAR_TOKEN    = credentials('sonar-token')
@@ -16,12 +16,12 @@ pipeline {
     stages {
         stage('1. Initialize & Audit') {
             steps {
-                // Calls vars/logStageBanner.groovy from the Shared Library
                 logStageBanner('INITIALIZE & ENVIRONMENT AUDIT')
                 sh '''
                     echo "Running on Host: $(hostname)"
                     git --version
                     docker --version
+                    ls -la
                 '''
             }
         }
@@ -35,13 +35,15 @@ pipeline {
             }
             steps {
                 logStageBanner('RUNNING PYTEST UNIT TESTS & COVERAGE')
-                // Calls vars/runPythonUnitTests.groovy from the Shared Library
-                runPythonUnitTests()
+                // Switch into the subfolder before running tests
+                dir('1-python-app-repo') {
+                    runPythonUnitTests()
+                }
             }
             post {
                 always {
-                    // Publishes JUnit XML report to Jenkins UI (Test Result Trend graph)
-                    junit 'test-results.xml'
+                    // Look inside the subfolder for the generated XML report
+                    junit '1-python-app-repo/test-results.xml'
                 }
             }
         }
@@ -55,18 +57,20 @@ pipeline {
             }
             steps {
                 logStageBanner('RUNNING SONARQUBE STATIC CODE ANALYSIS')
-                sh '''
-                    sonar-scanner \
-                      -Dsonar.host.url=${SONAR_HOST_URL} \
-                      -Dsonar.token=${SONAR_TOKEN}
-                '''
+                // Switch into the subfolder so sonar-scanner finds sonar-project.properties
+                dir('1-python-app-repo') {
+                    sh '''
+                        sonar-scanner \
+                          -Dsonar.host.url=${SONAR_HOST_URL} \
+                          -Dsonar.token=${SONAR_TOKEN}
+                    '''
+                }
             }
         }
     }
 
     post {
         success {
-            // Calls vars/sendBuildEmail.groovy from the Shared Library
             sendBuildEmail('SUCCESS', env.NOTIFY_EMAIL)
         }
         failure {
