@@ -1,15 +1,13 @@
-// 1. Import the custom Shared Library configured in Jenkins System settings
+```groovy
+// Import the custom Shared Library
 @Library('my-shared-lib') _
 
 pipeline {
     agent any
 
     environment {
-        // Replace with your current EC2 Public IP if you stopped/restarted the instance
         SONAR_HOST_URL = 'http://44.204.90.214:9000'
-        // Secret text credential stored in Jenkins Credentials with ID: 'sonar-token'
         SONAR_TOKEN    = credentials('sonar-token')
-        // Email recipient for build notifications
         NOTIFY_EMAIL   = 'testxyz0606@gmail.com'
     }
 
@@ -17,6 +15,7 @@ pipeline {
         stage('1. Initialize & Audit') {
             steps {
                 logStageBanner('INITIALIZE & ENVIRONMENT AUDIT')
+
                 sh '''
                     echo "Running on Host: $(hostname)"
                     git --version
@@ -33,16 +32,17 @@ pipeline {
                     reuseNode true
                 }
             }
+
             steps {
                 logStageBanner('RUNNING PYTEST UNIT TESTS & COVERAGE')
-                // Switch into the subfolder before running tests
+
                 dir('1-python-app-repo') {
                     runPythonUnitTests()
                 }
             }
+
             post {
                 always {
-                    // Look inside the subfolder for the generated XML report
                     junit '1-python-app-repo/test-results.xml'
                 }
             }
@@ -55,11 +55,15 @@ pipeline {
                     reuseNode true
                 }
             }
+
             steps {
                 logStageBanner('RUNNING SONARQUBE STATIC CODE ANALYSIS')
-                // Switch into the subfolder so sonar-scanner finds sonar-project.properties
+
                 dir('1-python-app-repo') {
                     sh '''
+                        export SONAR_USER_HOME="$WORKSPACE/.sonar"
+                        mkdir -p "$SONAR_USER_HOME"
+
                         sonar-scanner \
                           -Dsonar.host.url=${SONAR_HOST_URL} \
                           -Dsonar.token=${SONAR_TOKEN}
@@ -73,8 +77,10 @@ pipeline {
         success {
             sendBuildEmail('SUCCESS', env.NOTIFY_EMAIL)
         }
+
         failure {
             sendBuildEmail('FAILURE', env.NOTIFY_EMAIL)
         }
     }
 }
+```
