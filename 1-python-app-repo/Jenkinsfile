@@ -6,7 +6,7 @@ pipeline {
     agent any
 
     environment {
-        SONAR_HOST_URL = 'http://44.204.90.214:9000'
+        SONAR_HOST_URL = 'http://54.152.241.145:9000'
         SONAR_TOKEN    = credentials('sonar-token')
         NOTIFY_EMAIL   = 'testxyz0606@gmail.com'
     }
